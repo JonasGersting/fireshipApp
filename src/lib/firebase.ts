@@ -1,12 +1,8 @@
-
-
-
-
 import { initializeApp } from "firebase/app";
-import { getFirestore   } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import { getStorage } from "firebase/storage";
-import { writable } from "svelte/store";
+import { writable, readable } from "svelte/store";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCI-zqRA8grUm45NixaKOZNqrDjg2SQpPM",
@@ -52,3 +48,28 @@ function userStore() {
 }
 
 export const user = userStore();
+
+/**
+ * A readable store that contains the user's profile data from Firestore.
+ */
+export const userData = readable<any>(null, (set) => {
+  let unsubscribeFirestore: () => void;
+
+  const unsubscribeAuth = user.subscribe((user) => {
+    if (user) {
+      const ref = doc(db, "users", user.uid);
+      unsubscribeFirestore = onSnapshot(ref, (doc) => {
+        set(doc.data());
+      });
+    } else {
+      set(null);
+    }
+  });
+
+  return () => {
+    unsubscribeAuth();
+    if (unsubscribeFirestore) {
+      unsubscribeFirestore();
+    }
+  };
+});
